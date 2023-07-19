@@ -28,6 +28,15 @@ def is_prompt_in_cache(self, forward_call: "bt.TextPromptingForwardCall") -> boo
     prompt_key = hashlib.sha256(prompt.encode()).hexdigest()
     current_block = self.metagraph.block
 
+    should_blacklist: bool
+    # Check if prompt is in cache, if not add it
+    if prompt_key in self.prompt_cache:
+        should_blacklist = True
+    else:
+        caller_hotkey = forward_call.src_hotkey
+        self.prompt_cache[prompt_key] = (caller_hotkey, current_block)
+        should_blacklist = False
+
     # Sanitize cache by removing old entries according to block span
     keys_to_remove = []
     for key, (_, block) in self.prompt_cache.items():
@@ -37,13 +46,7 @@ def is_prompt_in_cache(self, forward_call: "bt.TextPromptingForwardCall") -> boo
     for key in keys_to_remove:
         del self.prompt_cache[key]
 
-    # Check if prompt is in cache, if not add it
-    if prompt_key in self.prompt_cache:
-        return True
-    else:
-        caller_hotkey = forward_call.src_hotkey
-        self.prompt_cache[prompt_key] = (caller_hotkey, current_block)
-        return False
+    return should_blacklist
 
 
 def default_blacklist(
