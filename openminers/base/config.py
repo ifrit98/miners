@@ -81,6 +81,12 @@ def add_args(cls, parser: argparse.ArgumentParser):
         help="Minimum stake requirement",
         default=0.0,
     )
+    parser.add_argument(
+        "--miner.blacklist.prompt_cache_block_span",
+        type=int,
+        help="Amount of blocks to keep a prompt in cache",
+        default=50,
+    )
 
     # Priority.
     parser.add_argument(

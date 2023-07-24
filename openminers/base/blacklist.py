@@ -14,10 +14,39 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
-
+import json
 import wandb
+import hashlib
 import bittensor as bt
-from typing import List, Dict, Union, Tuple, Callable
+from typing import Union, Tuple, Callable
+
+
+def is_prompt_in_cache(self, forward_call: "bt.TextPromptingForwardCall") -> bool:
+    # Hashes prompt
+    # Note: Could be improved using a similarity check
+    prompt = json.dumps(list(forward_call.messages))
+    prompt_key = hashlib.sha256(prompt.encode()).hexdigest()
+    current_block = self.metagraph.block
+
+    should_blacklist: bool
+    # Check if prompt is in cache, if not add it
+    if prompt_key in self.prompt_cache:
+        should_blacklist = True
+    else:
+        caller_hotkey = forward_call.src_hotkey
+        self.prompt_cache[prompt_key] = (caller_hotkey, current_block)
+        should_blacklist = False
+
+    # Sanitize cache by removing old entries according to block span
+    keys_to_remove = []
+    for key, (_, block) in self.prompt_cache.items():
+        if block + self.config.miner.blacklist.prompt_cache_block_span < current_block:
+            keys_to_remove.append(key)
+
+    for key in keys_to_remove:
+        del self.prompt_cache[key]
+
+    return should_blacklist
 
 
 def default_blacklist(
@@ -55,14 +84,10 @@ def default_blacklist(
     ):
         return True, "validator permit required"
 
-    # Get the uid stake amount.
-    stake_amount = self.metagraph.S[uid].item()
+    if is_prompt_in_cache(self, forward_call):
+        return True, "prompt already sent recently"
 
-    # Check if the user has enough stake.
-    if stake_amount < self.config.miner.blacklist.minimum_stake_requirement:
-        return True, "hotkey does not have enough stake"
-
-    # Other wise the user is not blacklisted.
+    # Otherwise the user is not blacklisted.
     return False, "passed blacklist"
 
 
@@ -71,7 +96,7 @@ def blacklist(
 ) -> Union[Tuple[bool, str], bool]:
     bt.logging.trace("run blacklist function")
 
-    # First check to see if the black list function is ovveridden by the subclass.
+    # First check to see if the black list function is overridden by the subclass.
     does_blacklist = None
     reason = None
     try:

@@ -70,6 +70,9 @@ class BaseMiner(ABC):
         self.config.merge(super_config)
         check_config(BaseMiner, self.config)
 
+        # Instantiate prompt cache where key is the encoded prompt and value is a tuple of hotkey and block
+        self.prompt_cache: Dict[str, Tuple[str, int]] = {}
+
         # Instantiate logging.
         bt.logging(config=self.config, logging_dir=self.config.miner.full_path)
 
