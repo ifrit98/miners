@@ -76,6 +76,17 @@ class BaseMiner(ABC):
         # Instantiate logging.
         bt.logging(config=self.config, logging_dir=self.config.miner.full_path)
 
+        # Warn if blacklist checking is turned off.
+        if (
+            not self.config.miner.blacklist.force_validator_permit
+            or self.config.miner.blacklist.allow_non_registered
+        ):
+            bt.logging.warning(
+                "Blacklist protections are disabled! "
+                f"Force Validator Permit: {self.config.miner.blacklist.force_validator_permit}, "
+                f"Allow Non-Registered: {self.config.miner.blacklist.allow_non_registered}"
+            )
+
         # Instantiate subtensor.
         if self.config.miner.mock_subtensor:
             self.subtensor = subtensor or MockSubtensor(self.config)
