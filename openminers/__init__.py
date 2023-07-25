@@ -21,7 +21,7 @@ from .text_to_text.vicuna.miner import VicunaMiner as VicunaMiner
 from .text_to_text.cerebras.miner import CerebrasMiner as CerebrasMiner
 from .text_to_text.falcon.miner import FalconMiner as FalconMiner
 from .text_to_text.hermes.miner import HermesMiner as HermesMiner
-from .text_to_text.bittensor_lm.miner import BittensorLMMiner as BittensorLMMiner
+from .text_to_text.bittensor_lm.miner import CerebrasBTLMMiner as BittensorLMMiner
 
 # Lower case imports
 from .text_to_text.template.miner import TemplateMiner as template
@@ -42,4 +42,4 @@ from .text_to_text.vicuna.miner import VicunaMiner as vicuna
 from .text_to_text.cerebras.miner import CerebrasMiner as cerebras
 from .text_to_text.falcon.miner import FalconMiner as falcon
 from .text_to_text.hermes.miner import HermesMiner as HermesMiner
-from .text_to_text.bittensor_lm.miner import BittensorLMMiner as bittensor_lm
+from .text_to_text.bittensor_lm.miner import CerebrasBTLMMiner as bittensor_lm
