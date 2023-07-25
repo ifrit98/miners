@@ -21,11 +21,14 @@ from typing import List, Dict, Union, Tuple, Callable
 import time
 
 def record_request_timestamps(self, forward_call: "bt.TextPromptingForwardCall"):
-    timestamp_length= self.config.miner.priority.max_len_request_timestamps
+    timestamp_length = self.config.miner.priority.max_len_request_timestamps
     if forward_call.src_hotkey not in self.request_timestamps:
         self.request_timestamps[forward_call.src_hotkey] = [0] * timestamp_length
+    
     self.request_timestamps[forward_call.src_hotkey].append(forward_call.start_time)
     self.request_timestamps[forward_call.src_hotkey] = self.request_timestamps[forward_call.src_hotkey][-timestamp_length:]
+    
+    return self.request_timestamps 
 
 def default_priority(self, forward_call: "bt.TextPromptingForwardCall") -> float:
     # Check if the key is registered.
@@ -41,17 +44,19 @@ def default_priority(self, forward_call: "bt.TextPromptingForwardCall") -> float
     uid = self.metagraph.hotkeys.index(forward_call.src_hotkey)
     stake_amount = self.metagraph.S[uid].item()
     
+    
     # request period
     if forward_call.src_hotkey in self.request_timestamps:
         period = (time.time() - self.request_timestamps[forward_call.src_hotkey][-10]) 
+        period_scale = period/(self.config.miner.priority.time_stake_multiplicate * 60) 
+        priority = max(period_scale, 1) * stake_amount
+    
     else:
-        period = time.time()
-
-    period /= (self.config.miner.priority.time_stake_multiplicate * 60) 
-
+        priority = self.config.miner.priority.default
+    
     record_request_timestamps(self, forward_call)
     
-    return max(period, 1) * stake_amount
+    return priority
 
 
 def priority(

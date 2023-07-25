@@ -75,8 +75,8 @@ def default_blacklist(
 
     # Check if the key has validator permit
     if (
+        self.config.miner.blacklist.force_validator_permit and
         not self.metagraph.validator_permit[uid]
-        and self.config.miner.blacklist.force_validator_permit
     ):
         return True, "validator permit required"
 
