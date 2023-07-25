@@ -18,7 +18,7 @@
 import wandb
 import bittensor as bt
 from typing import List, Dict, Union, Tuple, Callable
-
+import time
 
 def default_priority(self, forward_call: "bt.TextPromptingForwardCall") -> float:
     # Check if the key is registered.
@@ -33,7 +33,16 @@ def default_priority(self, forward_call: "bt.TextPromptingForwardCall") -> float
     # If the user is registered, it has a UID.
     uid = self.metagraph.hotkeys.index(forward_call.src_hotkey)
     stake_amount = self.metagraph.S[uid].item()
-    return stake_amount
+    
+    # request period
+    if forward_call.src_hotkey in self.synapse.request_timestamps:
+        period = (time.time() - self.synapse.request_timestamps[forward_call.src_hotkey][-10]) 
+    else:
+        period = time.time()
+
+    period /= (self.config.miner.priority.time_stake_multiplicate * 60) 
+
+    return max(period, 1) * stake_amount
 
 
 def priority(
