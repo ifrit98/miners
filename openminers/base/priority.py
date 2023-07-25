@@ -21,7 +21,7 @@ from typing import List, Dict, Union, Tuple, Callable
 import time
 
 def record_request_timestamps(self, forward_call: "bt.TextPromptingForwardCall"):
-    timestamp_length = self.config.miner.priority.max_len_request_timestamps
+    timestamp_length = self.config.miner.priority.len_request_timestamps
     if forward_call.src_hotkey not in self.request_timestamps:
         self.request_timestamps[forward_call.src_hotkey] = [0] * timestamp_length
     

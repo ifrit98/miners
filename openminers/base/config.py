@@ -111,9 +111,9 @@ def add_args(cls, parser: argparse.ArgumentParser):
         default=10,
     )
     parser.add_argument(
-        "--miner.priority.max_len_request_timestamps",
+        "--miner.priority.len_request_timestamps",
         type=int,
-        help="Maximum number of historic request timestamps to record",
+        help="Number of historic request timestamps to record",
         default=50,
     )
     # Switches.

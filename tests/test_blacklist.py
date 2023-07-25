@@ -138,7 +138,7 @@ class BlacklistTestCase(unittest.TestCase):
     def test_request_timestamps_blacklist(self):
         hotkey_address = 'hotkey1'
         min_request_period = 30
-        max_len_request_timestamps = 50
+        len_request_timestamps = 50
 
         mock_self = MagicMock()
         mock_self.config.miner.blacklist.whitelist = []
@@ -148,7 +148,7 @@ class BlacklistTestCase(unittest.TestCase):
         mock_self.config.miner.blacklist.min_request_period = min_request_period
         mock_self.metagraph.hotkeys = [hotkey_address]
         mock_self.request_timestamps = {
-            hotkey_address: [time.time() - (min_request_period*60-1)] * max_len_request_timestamps
+            hotkey_address: [time.time() - (min_request_period*60-1)] * len_request_timestamps
         }
 
         mock_forward_call = MagicMock()
@@ -160,7 +160,7 @@ class BlacklistTestCase(unittest.TestCase):
 
         # Should not black list when period is longer 
         mock_self.request_timestamps = {
-            hotkey_address: [time.time() - (min_request_period*60)] * max_len_request_timestamps
+            hotkey_address: [time.time() - (min_request_period*60)] * len_request_timestamps
         }
         should_blacklist, blacklist_message = default_blacklist(mock_self, mock_forward_call) 
         assert should_blacklist == False
