@@ -89,10 +89,10 @@ def default_blacklist(
         return True, "prompt already sent recently"
 
     # request period
-    if forward_call.src_hotkey in self.synapse.request_timestamps:
-        period = time.time() - self.synapse.request_timestamps[forward_call.src_hotkey][0]
+    if forward_call.src_hotkey in self.request_timestamps:
+        period = time.time() - self.request_timestamps[forward_call.src_hotkey][0]
         if period < self.config.miner.blacklist.min_request_period * 60:
-            return True, f"{forward_call.src_hotkey} request frequency exceeded {len(self.synapse.request_timestamps[forward_call.src_hotkey])} requests in {self.config.miner.blacklist.min_request_period} minutes."
+            return True, f"{forward_call.src_hotkey} request frequency exceeded {len(self.request_timestamps[forward_call.src_hotkey])} requests in {self.config.miner.blacklist.min_request_period} minutes."
 
     # Otherwise the user is not blacklisted.
     return False, "passed blacklist"

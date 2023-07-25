@@ -110,7 +110,12 @@ def add_args(cls, parser: argparse.ArgumentParser):
         help="Time (in minute) it takes to make the stake twice more important in the priority queue",
         default=10,
     )
-
+    parser.add_argument(
+        "--miner.priority.max_len_request_timestamps",
+        type=int,
+        help="Maximum number of historic request timestamps to record",
+        default=50,
+    )
     # Switches.
     parser.add_argument(
         "--miner.no_set_weights",
