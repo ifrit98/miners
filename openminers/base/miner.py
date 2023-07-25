@@ -111,6 +111,8 @@ class BaseMiner(ABC):
         self.is_running: bool = False
         self.thread: threading.Thread = None
 
+        self.request_timestamps = {}
+
     def run(self):
         run(self)
 
