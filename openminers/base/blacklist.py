@@ -14,6 +14,7 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
+import time
 import json
 import wandb
 import hashlib
@@ -79,13 +80,19 @@ def default_blacklist(
 
     # Check if the key has validator permit
     if (
-        self.metagraph.validator_permit[uid]
+        not self.metagraph.validator_permit[uid]
         and self.config.miner.blacklist.force_validator_permit
     ):
         return True, "validator permit required"
 
     if is_prompt_in_cache(self, forward_call):
         return True, "prompt already sent recently"
+
+    # request period
+    if forward_call.src_hotkey in self.synapse.request_timestamps:
+        period = time.time() - self.synapse.request_timestamps[forward_call.src_hotkey][0]
+        if period < self.config.miner.blacklist.min_request_period * 60:
+            return True, f"{forward_call.src_hotkey} request frequency exceeded {len(self.synapse.request_timestamps[forward_call.src_hotkey])} requests in {self.config.miner.blacklist.min_request_period} minutes."
 
     # Otherwise the user is not blacklisted.
     return False, "passed blacklist"
