@@ -53,10 +53,6 @@ def is_prompt_in_cache(self, forward_call: "bt.TextPromptingForwardCall") -> boo
 def default_blacklist(
     self, forward_call: "bt.TextPromptingForwardCall"
 ) -> Union[Tuple[bool, str], bool]:
-    # Check if we allow non-registered users
-    # If we do, all messages go through.
-    if self.config.miner.blacklist.allow_non_registered:
-        return False, "allow all non-registered hotkeys."
 
     # Check if the key is white listed.
     if forward_call.src_hotkey in self.config.miner.blacklist.whitelist:
@@ -66,14 +62,13 @@ def default_blacklist(
     if forward_call.src_hotkey in self.config.miner.blacklist.blacklist:
         return True, "blacklisted hotkey"
 
-    # Check if the key is registered.
-    registered = False
-    if self.metagraph is not None:
-        registered = forward_call.src_hotkey in self.metagraph.hotkeys
-
-    # Check if we allow non-registered users.
-    if not registered:
-        return True, "hotkey not registered"
+    # Check registration if we do not allow non-registered users
+    if (
+        not self.config.miner.blacklist.allow_non_registered and
+        self.metagraph is not None and 
+        forward_call.src_hotkey not in self.metagraph.hotkeys
+    ):
+            return True, "hotkey not registered"
 
     # If the user is registered, it has a UID.
     uid = self.metagraph.hotkeys.index(forward_call.src_hotkey)
