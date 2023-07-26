@@ -26,40 +26,69 @@ import deepspeed
 import bittensor
 import os
 
-local_rank = int(os.getenv('LOCAL_RANK', '0'))
-world_size = int(os.getenv('WORLD_SIZE', '1'))
+local_rank = int(os.getenv("LOCAL_RANK", "0"))
+world_size = int(os.getenv("WORLD_SIZE", "1"))
 
-class BloomChatMiner( openminers.BasePromptingMiner ):
+
+class BloomChatMiner(openminers.BasePromptingMiner):
+    @classmethod
+    def add_args(cls, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--deployment_framework",
+            type=str,
+            choices=["accelerate", "deepspeed"],
+            default="accelerate",
+            help="Inference framework to use for multi-gpu inference",
+        )
+        parser.add_argument(
+            "--use_8_bit",
+            action="store_true",
+            default=False,
+            help="Whether to use int8 quantization or not.",
+        )
+        parser.add_argument(
+            "--use_4_bit",
+            action="store_true",
+            default=False,
+            help="Whether to use int4 quantization or not",
+        )
+        parser.add_argument(
+            "--bloom.model_name",
+            type=str,
+            default="sambanovasystems/BLOOMChat-176B-v1",
+            help="Name/path of model to load",
+        )
+        parser.add_argument(
+            "--bloom.max_new_tokens",
+            type=int,
+            default=100,
+            help="Number of new tokens to generate",
+        )
 
     @classmethod
-    def add_args( cls, parser: argparse.ArgumentParser ):
-        parser.add_argument('--deployment_framework',  type=str, choices=['accelerate', 'deepspeed'], default="accelerate", help='Inference framework to use for multi-gpu inference')
-        parser.add_argument( '--use_8_bit', action='store_true', default=False, help='Whether to use int8 quantization or not.' )
-        parser.add_argument( '--use_4_bit',  action='store_true', default=False, help='Whether to use int4 quantization or not' )
-        parser.add_argument('--bloom.model_name', type=str, default="sambanovasystems/BLOOMChat-176B-v1", help='Name/path of model to load' )
-        parser.add_argument('--bloom.max_new_tokens', type=int, default=100, help='Number of new tokens to generate' )
+    def config(cls) -> "bittensor.Config":
+        parser = argparse.ArgumentParser(description="Bloom Miner Config")
+        cls.add_args(parser)
+        return bittensor.config(parser)
 
-    @classmethod
-    def config( cls ) -> "bittensor.Config":
-        parser = argparse.ArgumentParser( description='Bloom Miner Config' )
-        cls.add_args( parser )
-        return bittensor.config( parser )
-
-    def __init__( self, *args, **kwargs):
-        super( BloomChatMiner, self ).__init__( *args, **kwargs )
-        bittensor.logging.info( 'Loading ' + str( self.config.bloom.model_name ) )
+    def __init__(self, *args, **kwargs):
+        super(BloomChatMiner, self).__init__(*args, **kwargs)
+        bittensor.logging.info("Loading " + str(self.config.bloom.model_name))
         if self.config.deployment_framework == "deepspeed":
-
             # distributed setup
-            os.environ["TOKENIZERS_PARALLELISM"] = "false" # To avoid warnings about parallelism in tokenizers
-            self.local_rank = int(os.getenv('LOCAL_RANK', '0'))
-            world_size = int(os.getenv('WORLD_SIZE', '1'))
+            os.environ[
+                "TOKENIZERS_PARALLELISM"
+            ] = "false"  # To avoid warnings about parallelism in tokenizers
+            self.local_rank = int(os.getenv("LOCAL_RANK", "0"))
+            world_size = int(os.getenv("WORLD_SIZE", "1"))
             torch.cuda.set_device(self.local_rank)
             deepspeed.init_distributed()
 
             self.tokenizer = AutoTokenizer.from_pretrained(self.config.bloom.model_name)
 
-            config = AutoConfig.from_pretrained(self.config.bloom.model_name, trust_remote_code=True)
+            config = AutoConfig.from_pretrained(
+                self.config.bloom.model_name, trust_remote_code=True
+            )
 
             model_hidden_size = config.hidden_size
 
@@ -91,20 +120,19 @@ class BloomChatMiner( openminers.BasePromptingMiner ):
                 },
                 "zero_optimization": {
                     "stage": 3,
-                    "offload_param": {
-                        "device": "cpu",
-                        "pin_memory": True
-                    },
+                    "offload_param": {"device": "cpu", "pin_memory": True},
                     "overlap_comm": True,
                     "contiguous_gradients": True,
                     "reduce_bucket_size": model_hidden_size * model_hidden_size,
-                    "stage3_prefetch_bucket_size": 0.9 * model_hidden_size * model_hidden_size,
-                    "stage3_param_persistence_threshold": 10 * model_hidden_size
+                    "stage3_prefetch_bucket_size": 0.9
+                    * model_hidden_size
+                    * model_hidden_size,
+                    "stage3_param_persistence_threshold": 10 * model_hidden_size,
                 },
                 "steps_per_print": 2000,
                 "train_batch_size": train_batch_size,
                 "train_micro_batch_size_per_gpu": 1,
-                "wall_clock_breakdown": False
+                "wall_clock_breakdown": False,
             }
 
             # next line instructs transformers to partition the model directly over multiple gpus using
@@ -114,29 +142,33 @@ class BloomChatMiner( openminers.BasePromptingMiner ):
             #
             # otherwise the model will first be loaded normally and only partitioned at forward time which is
             # less efficient and when there is little CPU RAM may fail
-            dschf = HfDeepSpeedConfig(ds_config) # keep this object alive
+            dschf = HfDeepSpeedConfig(ds_config)  # keep this object alive
 
             # now a model can be loaded.
-            self.model = AutoModelForCausalLM.from_pretrained(self.config.bloom.model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.config.bloom.model_name, trust_remote_code=True
+            )
 
             # initialise deepspeed ZeRO
-            self.ds_engine = deepspeed.initialize(model=self.model,
-                                            config_params=ds_config,
-                                            model_parameters=None,
-                                            optimizer=None,
-                                            lr_scheduler=None)[0]
-            self.ds_engine.module.eval() 
+            self.ds_engine = deepspeed.initialize(
+                model=self.model,
+                config_params=ds_config,
+                model_parameters=None,
+                optimizer=None,
+                lr_scheduler=None,
+            )[0]
+            self.ds_engine.module.eval()
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(self.config.bloom.model_name)
 
             self.model = AutoModelForCausalLM.from_pretrained(
-                self.config.bloom.model_name, 
-                device_map="auto", 
-                load_in_8bit=self.config.use_8_bit, 
+                self.config.bloom.model_name,
+                device_map="auto",
+                load_in_8bit=self.config.use_8_bit,
                 load_in_4bit=self.config.use_4_bit,
             )
 
-            self.pipe = pipeline( 
+            self.pipe = pipeline(
                 "text-generation",
                 model=self.model,
                 tokenizer=self.tokenizer,
@@ -144,44 +176,53 @@ class BloomChatMiner( openminers.BasePromptingMiner ):
             )
 
     @staticmethod
-    def _process_history( history: List[ Dict[str, str] ] ) -> str:
-        processed_history = ''
+    def _process_history(history: List[Dict[str, str]]) -> str:
+        processed_history = ""
         for message in history:
-            if message['role'] == 'system':
-                processed_history += '<human>: ' + message['content'] + '\n'
-            if message['role'] == 'assistant':
-                processed_history += '<bot>: ' + message['content'] + '\n'
-            if message['role'] == 'user':
-                processed_history += '<human>: ' + message['content'] + '\n'
+            if message["role"] == "system":
+                processed_history += "<human>: " + message["content"] + "\n"
+            if message["role"] == "assistant":
+                processed_history += "<bot>: " + message["content"] + "\n"
+            if message["role"] == "user":
+                processed_history += "<human>: " + message["content"] + "\n"
         return processed_history
 
-    def forward( self, messages: List[Dict[str, str]]  ) -> str:
+    def forward(self, messages: List[Dict[str, str]]) -> str:
         history = self._process_history(messages)
 
         if self.config.deployment_framework == "deepspeed":
-            inputs = self.tokenizer.encode(history, return_tensors="pt").to(device=self.local_rank)
+            inputs = self.tokenizer.encode(history, return_tensors="pt").to(
+                device=self.local_rank
+            )
             with torch.no_grad():
-                outputs = self.ds_engine.module.generate(inputs, max_length= 60)
-            resp = self.tokenizer.decode(outputs[0], skip_special_tokens=True).replace( str( history ), "")
-        
+                outputs = self.ds_engine.module.generate(inputs, max_length=60)
+            resp = self.tokenizer.decode(outputs[0], skip_special_tokens=True).replace(
+                str(history), ""
+            )
+
         else:
-            resp = self.pipe( 
-                history, 
-                max_new_tokens=self.config.bloom.max_new_tokens,
-                do_sample=True,
-                top_k=10,
-                num_return_sequences=1,
-                eos_token_id=self.tokenizer.eos_token_id, 
-            )[0]['generated_text'].split(':')[-1].replace( str( history ), "")
-        
+            resp = (
+                self.pipe(
+                    history,
+                    max_new_tokens=self.config.bloom.max_new_tokens,
+                    do_sample=True,
+                    top_k=10,
+                    num_return_sequences=1,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                )[0]["generated_text"]
+                .split(":")[-1]
+                .replace(str(history), "")
+            )
+
         # Logging input and generation if debugging is active
-        bittensor.logging.debug( "Message: " + str( messages ) )
-        bittensor.logging.debug( "Generation: " + str( resp ) )
+        bittensor.logging.debug("Message: " + str(messages))
+        bittensor.logging.debug("Generation: " + str(resp))
         return resp
 
-if __name__ == "__main__":  
+
+if __name__ == "__main__":
     miner = BloomChatMiner()
     with miner:
         while True:
-            print ('running...', time.time())
+            print("running...", time.time())
             time.sleep(1)

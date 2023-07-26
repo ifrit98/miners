@@ -22,7 +22,6 @@ import bittensor as bt
 
 
 def add_args(cls, parser: argparse.ArgumentParser):
-
     # Add args for the super.
     parser.add_argument("--netuid", type=int, help="Subnet netuid", default=1)
     parser.add_argument(
@@ -86,14 +85,14 @@ def add_args(cls, parser: argparse.ArgumentParser):
         type=int,
         help="Amount of blocks to keep a prompt in cache",
         default=50,
-    ) 
+    )
     parser.add_argument(
         "--miner.blacklist.min_request_period",
         type=int,
         help="Time period (in minute) to serve a maximum of 50 requests for each hotkey",
         default=30,
     )
-    
+
     # Priority.
     parser.add_argument(
         "--miner.priority.default",

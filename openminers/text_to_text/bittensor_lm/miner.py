@@ -27,8 +27,8 @@ from typing import List, Dict
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
-class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
 
+class CerebrasBTLMMiner(openminers.BasePromptingMiner):
     @classmethod
     def config(cls) -> "bittensor.Config":
         parser = argparse.ArgumentParser(description="Bittensor-LM Miner Configs")
@@ -46,9 +46,9 @@ class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
         parser.add_argument("--btlm.system_prompt", type=str, help="What prompt to replace the system prompt with", default="A chat between a curious user and an artificial intelligence assistant.\nThe assistant gives helpful, detailed, and polite answers to the user's questions. ")
         parser.add_argument("--btlm.use_deepspeed", action="store_true", default=False, help="Whether to use deepspeed or not (if not, uses vanilla huggingface).")
 
-    def __init__( self, *args, **kwargs ):
-        super( CerebrasBTLMMiner, self ).__init__( *args, **kwargs )
-        print ( self.config )
+    def __init__(self, *args, **kwargs):
+        super(CerebrasBTLMMiner, self).__init__(*args, **kwargs)
+        print(self.config)
 
         bittensor.logging.info( "Loading BTLM 3B model..." )
         model = AutoModelForCausalLM.from_pretrained( "cerebras/btlm-3b-8k-base", trust_remote_code=True, low_cpu_mem_usage=True, torch_dtype="auto" )
@@ -117,6 +117,7 @@ class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
         generation = self.pipe( history )[0]['generated_text'].split(':')[-1].replace( str( history ), "")
         bittensor.logging.debug( "Generation: {}".format( generation ) )
         return generation
+
 
 if __name__ == "__main__":
     bittensor.debug()

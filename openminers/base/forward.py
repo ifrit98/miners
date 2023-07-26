@@ -23,8 +23,13 @@ import traceback
 from typing import Callable, Dict, List, Union
 
 
-def forward(self, func: Callable, messages: List[Dict[str, str]], log_data: Dict[str, Union[str, float]] = None) -> str:
-    """ Forwards a list of messages to the miner's forward function."""
+def forward(
+    self,
+    func: Callable,
+    messages: List[Dict[str, str]],
+    log_data: Dict[str, Union[str, float]] = None,
+) -> str:
+    """Forwards a list of messages to the miner's forward function."""
 
     # Run the subclass forward function.
     try:
@@ -42,15 +47,17 @@ def forward(self, func: Callable, messages: List[Dict[str, str]], log_data: Dict
         # Log the response length and qtime.
         if self.config.wandb.on:
             wandb_log_data = {
-                "messages": messages, 
-                "completion": response, 
-                "end_time": time.time(), 
+                "messages": messages,
+                "completion": response,
+                "end_time": time.time(),
                 "block": self.subtensor.block,
                 "forward_elapsed": time.time() - start_time,
                 "forward_success": success,
             }
 
-            wandb.log(wandb_log_data if log_data == None else {**log_data, **wandb_log_data})
+            wandb.log(
+                wandb_log_data if log_data == None else {**log_data, **wandb_log_data}
+            )
 
         # Return the response.
         return response

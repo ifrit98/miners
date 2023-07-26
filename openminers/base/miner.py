@@ -58,7 +58,6 @@ class BaseMiner(ABC):
         wallet: "bt.Wallet" = None,
         subtensor: "bt.Subtensor" = None,
     ):
-
         # Instantiate and check configs.
         # Grab super config.
         super_config = copy.deepcopy(config or BaseMiner.config())
@@ -95,7 +94,7 @@ class BaseMiner(ABC):
 
         # Instantiate metagraph.
         self.metagraph = self.subtensor.metagraph(self.config.netuid)
-        self.metagraph.sync(lite = True, subtensor=self.subtensor)
+        self.metagraph.sync(lite=True, subtensor=self.subtensor)
 
         # Instantiate wallet.
         self.wallet = wallet or bt.wallet(self.config)
@@ -107,7 +106,7 @@ class BaseMiner(ABC):
 
         # Init wandb.
         if self.config.wandb.on:
-            tags = [self.wallet.hotkey.ss58_address, f'netuid_{self.config.netuid}']
+            tags = [self.wallet.hotkey.ss58_address, f"netuid_{self.config.netuid}"]
             self.wandb_run = wandb.init(
                 project=self.config.wandb.project_name,
                 entity=self.config.wandb.entity,
