@@ -1,21 +1,22 @@
 ## Bittensor LM  (BTLM) Miner
-Bittensor LM 1.3B Language Model
-This code is for running the very small (3B) Bittensor Language Model created by Cerebras.  
+Bittensor LM Language Model
+This code is for running the very small (3B) Bittensor Language Model created by btlm.  
 
 # Install
 ```
-python3 -m pip install -r openminers/text_to_text/cerebras/requirements.txt
+python3 -m pip install -r openminers/text_to_text/bittensor_lm/requirements.txt
 ```
 
 # Example Usage
 ```
-python3 openminers/text_to_text/cerebras/miner.py
+python3 openminers/text_to_text/bittensor_lm/miner.py
 ```
 
 # Full Usage
 ```
-usage: miner.py [-h] [--cerebras.device CEREBRAS.DEVICE] [--cerebras.max_length CEREBRAS.MAX_LENGTH] [--cerebras.do_sample]
-                 [--cerebras.no_repeat_ngram_size CEREBRAS.NO_REPEAT_NGRAM_SIZE] 
+usage: miner.py [-h] [--btlm.device btlm.DEVICE] [--btlm.max_length btlm.MAX_LENGTH] [--btlm.do_sample]
+                 [--btlm.no_repeat_ngram_size btlm.NO_REPEAT_NGRAM_SIZE] [--btlm.use_deepspeed] 
+                 [--btlm.do_prompt_injection] [--btlm.system_prompt SYSTEM_PROMPT] [--btlm.use_vanilla_process_history]
                  [--netuid NETUID] [--neuron.name NEURON.NAME] [--neuron.blocks_per_epoch NEURON.BLOCKS_PER_EPOCH] [--neuron.no_set_weights]
                  [--neuron.max_batch_size NEURON.MAX_BATCH_SIZE] [--neuron.max_sequence_len NEURON.MAX_SEQUENCE_LEN]
                  [--neuron.blacklist.hotkeys [NEURON.BLACKLIST.HOTKEYS ...]] [--neuron.blacklist.allow_non_registered]
@@ -35,14 +36,14 @@ usage: miner.py [-h] [--cerebras.device CEREBRAS.DEVICE] [--cerebras.max_length 
 
 optional arguments:
   -h, --help            show this help message and exit
-  --cerebras.device CEREBRAS.DEVICE
+  --btlm.device btlm.DEVICE
                         Device to load model
-  --cerebras.max_length CEREBRAS.MAX_LENGTH
+  --btlm.max_length btlm.MAX_LENGTH
                         The maximum length (in tokens) of the generated text.
-  --cerebras.do_sample  Whether to use sampling or not (if not, uses greedy decoding).
-  --cerebras.no_repeat_ngram_size CEREBRAS.NO_REPEAT_NGRAM_SIZE
+  --btlm.do_sample  Whether to use sampling or not (if not, uses greedy decoding).
+  --btlm.no_repeat_ngram_size btlm.NO_REPEAT_NGRAM_SIZE
                         The size of the n-grams to avoid repeating in the generated text.
-  --cerebras.model_size {1.3B,2.7B,6.7B,13B}
+  --btlm.model_size {1.3B,2.7B,6.7B,13B}
                         Model size to use.
   --netuid NETUID       Subnet netuid
   --neuron.name NEURON.NAME
