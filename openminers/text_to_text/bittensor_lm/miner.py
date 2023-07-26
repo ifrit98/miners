@@ -25,8 +25,8 @@ from typing import List, Dict
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
 
-class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
 
+class CerebrasBTLMMiner(openminers.BasePromptingMiner):
     @classmethod
     def config(cls) -> "bittensor.Config":
         parser = argparse.ArgumentParser(description="Bittensor-LM Miner Configs")
@@ -34,50 +34,84 @@ class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
         return bittensor.config(parser)
 
     @classmethod
-    def add_args( cls, parser: argparse.ArgumentParser ):
-        parser.add_argument('--cerebras.device', type=str, help='Device to load model', default="cuda")
-        parser.add_argument('--cerebras.max_length', type=int, default=50, help='The maximum length (in tokens) of the generated text.')
-        parser.add_argument('--cerebras.do_sample', action='store_true', default=False, help='Whether to use sampling or not (if not, uses greedy decoding).')
-        parser.add_argument('--cerebras.no_repeat_ngram_size', type=int, default=2, help='The size of the n-grams to avoid repeating in the generated text.')
+    def add_args(cls, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--cerebras.device", type=str, help="Device to load model", default="cuda"
+        )
+        parser.add_argument(
+            "--cerebras.max_length",
+            type=int,
+            default=50,
+            help="The maximum length (in tokens) of the generated text.",
+        )
+        parser.add_argument(
+            "--cerebras.do_sample",
+            action="store_true",
+            default=False,
+            help="Whether to use sampling or not (if not, uses greedy decoding).",
+        )
+        parser.add_argument(
+            "--cerebras.no_repeat_ngram_size",
+            type=int,
+            default=2,
+            help="The size of the n-grams to avoid repeating in the generated text.",
+        )
 
-    def __init__( self, *args, **kwargs ):
-        super( CerebrasBTLMMiner, self ).__init__( *args, **kwargs )
-        print ( self.config )
+    def __init__(self, *args, **kwargs):
+        super(CerebrasBTLMMiner, self).__init__(*args, **kwargs)
+        print(self.config)
 
-        bittensor.logging.info( "Loading BTLM {} model...".format( self.config.cerebras.model_size) )
-        model = AutoModelForCausalLM.from_pretrained( "cerebras/btlm-3b-8k-base", trust_remote_code=True, low_cpu_mem_usage=True,)
-        tokenizer = AutoTokenizer.from_pretrained( "cerebras/btlm-3b-8k-base", trust_remote_code=True,  )
+        bittensor.logging.info(
+            "Loading BTLM {} model...".format(self.config.cerebras.model_size)
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            "cerebras/btlm-3b-8k-base",
+            trust_remote_code=True,
+            low_cpu_mem_usage=True,
+        )
+        tokenizer = AutoTokenizer.from_pretrained(
+            "cerebras/btlm-3b-8k-base",
+            trust_remote_code=True,
+        )
 
         self.pipe = pipeline(
             "text-generation",
-            model = model,
-            tokenizer = tokenizer,
-            device = self.config.cerebras.device,
-            do_sample = self.config.cerebras.do_sample,
-            max_new_tokens = self.config.cerebras.max_length,
-            no_repeat_ngram_size = self.config.cerebras.no_repeat_ngram_size
+            model=model,
+            tokenizer=tokenizer,
+            device=self.config.cerebras.device,
+            do_sample=self.config.cerebras.do_sample,
+            max_new_tokens=self.config.cerebras.max_length,
+            no_repeat_ngram_size=self.config.cerebras.no_repeat_ngram_size,
         )
 
-    def backward( self, messages: List[Dict[str, str]], response: str, rewards: torch.FloatTensor ) -> str: pass
+    def backward(
+        self, messages: List[Dict[str, str]], response: str, rewards: torch.FloatTensor
+    ) -> str:
+        pass
 
     @staticmethod
-    def _process_history( history: List[Dict[str, str]] ) -> str:
-        processed_history = ''
+    def _process_history(history: List[Dict[str, str]]) -> str:
+        processed_history = ""
         for message in history:
-            if message['role'] == 'system':
-                processed_history += '' + message['content'] + '\n'
-            if message['role'] == 'assistant':
-                processed_history += '' + message['content'] + '\n'
-            if message['role'] == 'user':
-                processed_history += '' + message['content'] + '\n'
+            if message["role"] == "system":
+                processed_history += "" + message["content"] + "\n"
+            if message["role"] == "assistant":
+                processed_history += "" + message["content"] + "\n"
+            if message["role"] == "user":
+                processed_history += "" + message["content"] + "\n"
         return processed_history
 
-    def forward( self, messages: List[Dict[str, str]]  ) -> str:
+    def forward(self, messages: List[Dict[str, str]]) -> str:
         history = self._process_history(messages)
-        bittensor.logging.debug( "Message: {}".format( messages[0]["content"] ) )
-        generation = self.pipe( history )[0]['generated_text'].split(':')[-1].replace( str( history ), "")
-        bittensor.logging.debug( "Generation: {}".format( generation ) )
+        bittensor.logging.debug("Message: {}".format(messages[0]["content"]))
+        generation = (
+            self.pipe(history)[0]["generated_text"]
+            .split(":")[-1]
+            .replace(str(history), "")
+        )
+        bittensor.logging.debug("Generation: {}".format(generation))
         return generation
+
 
 if __name__ == "__main__":
     bittensor.debug()

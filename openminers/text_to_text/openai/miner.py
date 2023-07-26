@@ -25,7 +25,7 @@ from typing import List, Dict, Optional
 
 class OpenAIMiner(openminers.BasePromptingMiner):
     @classmethod
-    def add_args(cls, parser: argparse.ArgumentParser):        
+    def add_args(cls, parser: argparse.ArgumentParser):
         parser.add_argument(
             "--openai.suffix",
             type=str,
@@ -106,7 +106,7 @@ class OpenAIMiner(openminers.BasePromptingMiner):
 
 
 if __name__ == "__main__":
-    openai_api_key = os.getenv('OPENAI_API_KEY')
+    openai_api_key = os.getenv("OPENAI_API_KEY")
 
     with OpenAIMiner(api_key=openai_api_key):
         while True:

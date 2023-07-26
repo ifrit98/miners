@@ -53,7 +53,6 @@ def run(self):
         while (
             current_block - self.last_epoch_block
         ) < self.config.miner.blocks_per_epoch:
-
             # --- Wait for next block.
             time.sleep(1)
             current_block = self.subtensor.get_current_block()

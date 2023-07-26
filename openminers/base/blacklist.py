@@ -53,7 +53,6 @@ def is_prompt_in_cache(self, forward_call: "bt.TextPromptingForwardCall") -> boo
 def default_blacklist(
     self, forward_call: "bt.TextPromptingForwardCall"
 ) -> Union[Tuple[bool, str], bool]:
-
     # Check if the key is white listed.
     if forward_call.src_hotkey in self.config.miner.blacklist.whitelist:
         return False, "whitelisted hotkey"
@@ -64,19 +63,19 @@ def default_blacklist(
 
     # Check registration if we do not allow non-registered users
     if (
-        not self.config.miner.blacklist.allow_non_registered and
-        self.metagraph is not None and 
-        forward_call.src_hotkey not in self.metagraph.hotkeys
+        not self.config.miner.blacklist.allow_non_registered
+        and self.metagraph is not None
+        and forward_call.src_hotkey not in self.metagraph.hotkeys
     ):
-            return True, "hotkey not registered"
+        return True, "hotkey not registered"
 
     # If the user is registered, it has a UID.
     uid = self.metagraph.hotkeys.index(forward_call.src_hotkey)
 
     # Check if the key has validator permit
     if (
-        self.config.miner.blacklist.force_validator_permit and
-        not self.metagraph.validator_permit[uid]
+        self.config.miner.blacklist.force_validator_permit
+        and not self.metagraph.validator_permit[uid]
     ):
         return True, "validator permit required"
 
@@ -87,7 +86,10 @@ def default_blacklist(
     if forward_call.src_hotkey in self.request_timestamps:
         period = time.time() - self.request_timestamps[forward_call.src_hotkey][0]
         if period < self.config.miner.blacklist.min_request_period * 60:
-            return True, f"{forward_call.src_hotkey} request frequency exceeded {len(self.request_timestamps[forward_call.src_hotkey])} requests in {self.config.miner.blacklist.min_request_period} minutes."
+            return (
+                True,
+                f"{forward_call.src_hotkey} request frequency exceeded {len(self.request_timestamps[forward_call.src_hotkey])} requests in {self.config.miner.blacklist.min_request_period} minutes.",
+            )
 
     # Otherwise the user is not blacklisted.
     return False, "passed blacklist"
@@ -102,7 +104,6 @@ def blacklist(
     does_blacklist = None
     reason = None
     try:
-
         # Run the subclass blacklist function.
         blacklist_result = func(forward_call)
 

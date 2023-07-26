@@ -24,7 +24,14 @@ import deepspeed
 import os
 
 from typing import List, Dict
-from transformers import AutoTokenizer, pipeline, StoppingCriteria, StoppingCriteriaList, AutoModelForCausalLM, AutoConfig
+from transformers import (
+    AutoTokenizer,
+    pipeline,
+    StoppingCriteria,
+    StoppingCriteriaList,
+    AutoModelForCausalLM,
+    AutoConfig,
+)
 from transformers.deepspeed import HfDeepSpeedConfig
 
 
@@ -43,25 +50,25 @@ class StopOnTokens(StoppingCriteria):
 
 class FalconMiner(openminers.BasePromptingMiner):
     @classmethod
-    def add_args( cls, parser: argparse.ArgumentParser ):
+    def add_args(cls, parser: argparse.ArgumentParser):
         parser.add_argument(
             "--deployment_framework",
-            type=str, 
-            choices=["accelerate", "deepspeed"], 
-            default="accelerate", 
-            help="Inference framework to use for multi-gpu inference"
+            type=str,
+            choices=["accelerate", "deepspeed"],
+            default="accelerate",
+            help="Inference framework to use for multi-gpu inference",
         )
-        parser.add_argument( 
-            "--use_8_bit",  
-            action="store_true", 
-            default=False, 
-            help="Whether to use int8 quantization or not" 
+        parser.add_argument(
+            "--use_8_bit",
+            action="store_true",
+            default=False,
+            help="Whether to use int8 quantization or not",
         )
-        parser.add_argument( 
-            "--use_4_bit",  
-            action="store_true", 
-            default=False, 
-            help="Whether to use int4 quantization or not" 
+        parser.add_argument(
+            "--use_4_bit",
+            action="store_true",
+            default=False,
+            help="Whether to use int4 quantization or not",
         )
         parser.add_argument(
             "--falcon.model_name",
@@ -141,15 +148,18 @@ class FalconMiner(openminers.BasePromptingMiner):
         self.stop = StopOnTokens(self.stop_token_ids)
 
         if self.config.deployment_framework == "deepspeed":
-            
             # distributed setup
-            os.environ["TOKENIZERS_PARALLELISM"] = "false" # To avoid warnings about parallelism in tokenizers
-            self.local_rank = int(os.getenv('LOCAL_RANK', '0'))
-            world_size = int(os.getenv('WORLD_SIZE', '1'))
+            os.environ[
+                "TOKENIZERS_PARALLELISM"
+            ] = "false"  # To avoid warnings about parallelism in tokenizers
+            self.local_rank = int(os.getenv("LOCAL_RANK", "0"))
+            world_size = int(os.getenv("WORLD_SIZE", "1"))
             torch.cuda.set_device(self.local_rank)
             deepspeed.init_distributed()
 
-            config = AutoConfig.from_pretrained(self.config.falcon.model_name , trust_remote_code=True)
+            config = AutoConfig.from_pretrained(
+                self.config.falcon.model_name, trust_remote_code=True
+            )
 
             model_hidden_size = config.hidden_size
 
@@ -184,13 +194,15 @@ class FalconMiner(openminers.BasePromptingMiner):
                     "overlap_comm": True,
                     "contiguous_gradients": True,
                     "reduce_bucket_size": model_hidden_size * model_hidden_size,
-                    "stage3_prefetch_bucket_size": 0.9 * model_hidden_size * model_hidden_size,
-                    "stage3_param_persistence_threshold": 10 * model_hidden_size
+                    "stage3_prefetch_bucket_size": 0.9
+                    * model_hidden_size
+                    * model_hidden_size,
+                    "stage3_param_persistence_threshold": 10 * model_hidden_size,
                 },
                 "steps_per_print": 2000,
                 "train_batch_size": train_batch_size,
                 "train_micro_batch_size_per_gpu": 1,
-                "wall_clock_breakdown": False
+                "wall_clock_breakdown": False,
             }
 
             # next line instructs transformers to partition the model directly over multiple gpus using
@@ -200,32 +212,35 @@ class FalconMiner(openminers.BasePromptingMiner):
             #
             # otherwise the model will first be loaded normally and only partitioned at forward time which is
             # less efficient and when there is little CPU RAM may fail
-            dschf = HfDeepSpeedConfig(ds_config) # keep this object alive
+            dschf = HfDeepSpeedConfig(ds_config)  # keep this object alive
 
             # now a model can be loaded.
-            self.model = AutoModelForCausalLM.from_pretrained(self.config.falcon.model_name, trust_remote_code=True)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.config.falcon.model_name, trust_remote_code=True
+            )
 
             # initialise deepspeed ZeRO
-            self.ds_engine = deepspeed.initialize(model=self.model,
-                                            config_params=ds_config,
-                                            model_parameters=None,
-                                            optimizer=None,
-                                            lr_scheduler=None)[0]
-            self.ds_engine.module.eval() 
-
+            self.ds_engine = deepspeed.initialize(
+                model=self.model,
+                config_params=ds_config,
+                model_parameters=None,
+                optimizer=None,
+                lr_scheduler=None,
+            )[0]
+            self.ds_engine.module.eval()
 
         else:
             if self.config.use_8_bit and self.config.use_4_bit:
                 raise ValueError(
                     "You can't use 8 bit and 4 bit precision at the same time"
                 )
-            
+
             self.model = AutoModelForCausalLM.from_pretrained(
-                self.config.falcon.model_name, 
-                load_in_8bit=self.config.use_8_bit, 
+                self.config.falcon.model_name,
+                load_in_8bit=self.config.use_8_bit,
                 load_in_4bit=self.config.use_4_bit,
                 trust_remote_code=True,
-                device_map=self.config.falcon.device_map
+                device_map=self.config.falcon.device_map,
             )
 
             kwargs = dict(
@@ -234,15 +249,15 @@ class FalconMiner(openminers.BasePromptingMiner):
                 torch_dtype=torch.bfloat16,
                 temperature=self.config.falcon.temperature,
                 do_sample=self.config.falcon.do_sample,
-                device_map=self.config.falcon.device_map
+                device_map=self.config.falcon.device_map,
             )
 
             if self.config.falcon.device_map is not None:
-                kwargs['device_map'] = self.config.falcon.device_map
+                kwargs["device_map"] = self.config.falcon.device_map
             else:
-                kwargs['device'] = self.config.falcon.device
-            self.model = pipeline( "text-generation",  **kwargs )
-            bittensor.logging.info( 'Model loaded!' )
+                kwargs["device"] = self.config.falcon.device
+            self.model = pipeline("text-generation", **kwargs)
+            bittensor.logging.info("Model loaded!")
 
     def _process_history(self, history: List[str]) -> str:
         processed_history = ""
@@ -261,25 +276,33 @@ class FalconMiner(openminers.BasePromptingMiner):
     def forward(self, messages: List[Dict[str, str]]) -> str:
         history = self._process_history(messages)
         prompt = history + "ASSISTANT:"
-        
+
         if self.config.deployment_framework == "deepspeed":
-            inputs = self.tokenizer.encode(history, return_tensors="pt").to(device=self.local_rank)
+            inputs = self.tokenizer.encode(history, return_tensors="pt").to(
+                device=self.local_rank
+            )
             with torch.no_grad():
-                outputs = self.ds_engine.module.generate(inputs, max_length= 60)
-            generation = self.tokenizer.decode(outputs[0], skip_special_tokens=True).replace( str( history ), "")
-        
+                outputs = self.ds_engine.module.generate(inputs, max_length=60)
+            generation = self.tokenizer.decode(
+                outputs[0], skip_special_tokens=True
+            ).replace(str(history), "")
+
         else:
-            generation = self.model(
-                prompt,
-                max_length=self.config.falcon.max_length,
-                do_sample=self.config.falcon.do_sample,
-                top_k=self.config.falcon.top_k,
-                num_return_sequences=self.config.falcon.num_return_sequences,
-                eos_token_id=self.tokenizer.eos_token_id,
-                pad_token_id=self.tokenizer.pad_token_id,
-                repetition_penalty=self.config.falcon.repetition_penalty,
-                stopping_criteria=StoppingCriteriaList( [self.stop] ),
-            )[0]['generated_text'].split(':')[-1].replace( str( history ), "")
+            generation = (
+                self.model(
+                    prompt,
+                    max_length=self.config.falcon.max_length,
+                    do_sample=self.config.falcon.do_sample,
+                    top_k=self.config.falcon.top_k,
+                    num_return_sequences=self.config.falcon.num_return_sequences,
+                    eos_token_id=self.tokenizer.eos_token_id,
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    repetition_penalty=self.config.falcon.repetition_penalty,
+                    stopping_criteria=StoppingCriteriaList([self.stop]),
+                )[0]["generated_text"]
+                .split(":")[-1]
+                .replace(str(history), "")
+            )
 
         # Logging input and generation if debugging is active
         bittensor.logging.debug("Message: " + str(messages))

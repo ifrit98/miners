@@ -38,8 +38,7 @@ class BasePromptingMiner(BaseMiner, ABC):
 
     @classmethod
     def add_super_args(cls, parser: argparse.ArgumentParser):
-        """ Add arguments specific to BasePromptingMiner to parser.
-        """
+        """Add arguments specific to BasePromptingMiner to parser."""
         cls.add_args(parser)
         parser.add_argument(
             "--neuron.max_batch_size",
@@ -59,7 +58,6 @@ class BasePromptingMiner(BaseMiner, ABC):
 
         # Define synapse.
         class Synapse(bt.TextPromptingSynapse):
-
             # Build priority function.
             def priority(_, forward_call: "bt.TextPromptingForwardCall") -> float:
                 return priority(self, self.priority, forward_call)
@@ -71,7 +69,11 @@ class BasePromptingMiner(BaseMiner, ABC):
                 return blacklist(self, self.blacklist, forward_call)
 
             # Build forward function.
-            def forward(_, messages: List[Dict[str, str]], log_data: Dict[str, Union[str, float]] = None) -> str:
+            def forward(
+                _,
+                messages: List[Dict[str, str]],
+                log_data: Dict[str, Union[str, float]] = None,
+            ) -> str:
                 return forward(self, self.forward, messages, log_data)
 
             # Build backward function.
