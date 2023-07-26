@@ -14,6 +14,7 @@
 # THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
+import time
 import json
 import wandb
 import hashlib
@@ -52,10 +53,6 @@ def is_prompt_in_cache(self, forward_call: "bt.TextPromptingForwardCall") -> boo
 def default_blacklist(
     self, forward_call: "bt.TextPromptingForwardCall"
 ) -> Union[Tuple[bool, str], bool]:
-    # Check if we allow non-registered users
-    # If we do, all messages go through.
-    if self.config.miner.blacklist.allow_non_registered:
-        return False, "allow all non-registered hotkeys."
 
     # Check if the key is white listed.
     if forward_call.src_hotkey in self.config.miner.blacklist.whitelist:
@@ -65,27 +62,32 @@ def default_blacklist(
     if forward_call.src_hotkey in self.config.miner.blacklist.blacklist:
         return True, "blacklisted hotkey"
 
-    # Check if the key is registered.
-    registered = False
-    if self.metagraph is not None:
-        registered = forward_call.src_hotkey in self.metagraph.hotkeys
-
-    # Check if we allow non-registered users.
-    if not registered:
-        return True, "hotkey not registered"
+    # Check registration if we do not allow non-registered users
+    if (
+        not self.config.miner.blacklist.allow_non_registered and
+        self.metagraph is not None and 
+        forward_call.src_hotkey not in self.metagraph.hotkeys
+    ):
+            return True, "hotkey not registered"
 
     # If the user is registered, it has a UID.
     uid = self.metagraph.hotkeys.index(forward_call.src_hotkey)
 
     # Check if the key has validator permit
     if (
-        self.metagraph.validator_permit[uid]
-        and self.config.miner.blacklist.force_validator_permit
+        self.config.miner.blacklist.force_validator_permit and
+        not self.metagraph.validator_permit[uid]
     ):
         return True, "validator permit required"
 
     if is_prompt_in_cache(self, forward_call):
         return True, "prompt already sent recently"
+
+    # request period
+    if forward_call.src_hotkey in self.request_timestamps:
+        period = time.time() - self.request_timestamps[forward_call.src_hotkey][0]
+        if period < self.config.miner.blacklist.min_request_period * 60:
+            return True, f"{forward_call.src_hotkey} request frequency exceeded {len(self.request_timestamps[forward_call.src_hotkey])} requests in {self.config.miner.blacklist.min_request_period} minutes."
 
     # Otherwise the user is not blacklisted.
     return False, "passed blacklist"

@@ -65,6 +65,10 @@ def run(self):
         # --- Update the metagraph with the latest network state.
         self.last_epoch_block = self.subtensor.get_current_block()
         self.metagraph.sync(lite=False, subtensor=self.subtensor)
+        for hotkey in self.request_timestamps:
+            if hotkey not in self.metagraph.hotkeys:
+                self.request_timestamps.pop(hotkey)
+
         self.uid = self.metagraph.hotkeys.index(self.wallet.hotkey.ss58_address)
 
         # --- Log performance.

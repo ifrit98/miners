@@ -86,8 +86,14 @@ def add_args(cls, parser: argparse.ArgumentParser):
         type=int,
         help="Amount of blocks to keep a prompt in cache",
         default=50,
+    ) 
+    parser.add_argument(
+        "--miner.blacklist.min_request_period",
+        type=int,
+        help="Time period (in minute) to serve a maximum of 50 requests for each hotkey",
+        default=30,
     )
-
+    
     # Priority.
     parser.add_argument(
         "--miner.priority.default",
@@ -98,7 +104,18 @@ def add_args(cls, parser: argparse.ArgumentParser):
     parser.add_argument(
         "--miner.priority.use_s", type=float, help="A multiplier", default=0.0
     )
-
+    parser.add_argument(
+        "--miner.priority.time_stake_multiplicate",
+        type=int,
+        help="Time (in minute) it takes to make the stake twice more important in the priority queue",
+        default=10,
+    )
+    parser.add_argument(
+        "--miner.priority.len_request_timestamps",
+        type=int,
+        help="Number of historic request timestamps to record",
+        default=50,
+    )
     # Switches.
     parser.add_argument(
         "--miner.no_set_weights",
