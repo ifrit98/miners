@@ -15,7 +15,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# General.
+
 import time
 import argparse
 import bittensor
@@ -39,14 +39,26 @@ class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
         parser.add_argument('--cerebras.max_length', type=int, default=50, help='The maximum length (in tokens) of the generated text.')
         parser.add_argument('--cerebras.do_sample', action='store_true', default=False, help='Whether to use sampling or not (if not, uses greedy decoding).')
         parser.add_argument('--cerebras.no_repeat_ngram_size', type=int, default=2, help='The size of the n-grams to avoid repeating in the generated text.')
+        parser.add_argument('--cerebras.use_vanilla_process_history', action='store_true', default=False, help='Whether to use vanilla process history or not (if not, uses process history).')
+        parser.add_argument("--cerebras.do_prompt_injection", action="store_true", default=False, help='Whether to use a custom "system" prompt instead of the one sent by bittensor.')
+        parser.add_argument("--cerebras.system_prompt", type=str, help="What prompt to replace the system prompt with", default="A chat between a curious user and an artificial intelligence assistant.\nThe assistant gives helpful, detailed, and polite answers to the user's questions. ")
 
     def __init__( self, *args, **kwargs ):
         super( CerebrasBTLMMiner, self ).__init__( *args, **kwargs )
         print ( self.config )
 
-        bittensor.logging.info( "Loading BTLM {} model...".format( self.config.cerebras.model_size) )
-        model = AutoModelForCausalLM.from_pretrained( "cerebras/btlm-3b-8k-base", trust_remote_code=True, low_cpu_mem_usage=True,)
+        bittensor.logging.info( "Loading BTLM {} model...".format( self.config.cerebras.model_size ) )
+        model = AutoModelForCausalLM.from_pretrained( "cerebras/btlm-3b-8k-base", trust_remote_code=True, low_cpu_mem_usage=True, torch_dtype="auto" )
         tokenizer = AutoTokenizer.from_pretrained( "cerebras/btlm-3b-8k-base", trust_remote_code=True,  )
+
+        # Determine correct device id (int) from device string.
+        if self.config.cerebras.device == 'cuda':
+            self.config.cerebras.device = 0
+        elif len(self.config.cerebras.device.split(":") == 2):
+            try:
+                self.config.cerebras.device = int(self.config.cerebras.device.split(":")[1])
+            except:
+                raise ValueError("Invalid device string: {}".format(self.config.cerebras.device))
 
         self.pipe = pipeline(
             "text-generation",
@@ -60,21 +72,37 @@ class CerebrasBTLMMiner( openminers.BasePromptingMiner ):
 
     def backward( self, messages: List[Dict[str, str]], response: str, rewards: torch.FloatTensor ) -> str: pass
 
-    @staticmethod
-    def _process_history( history: List[Dict[str, str]] ) -> str:
+    def _process_history( self, history: List[Dict[str, str]] ) -> str:
         processed_history = ''
+        if self.config.cerebras.do_prompt_injection:
+            processed_history += self.config.cerebras.system_prompt
         for message in history:
             if message['role'] == 'system':
-                processed_history += '' + message['content'] + '\n'
+                if not self.config.cerebras.do_prompt_injection or message != history[0]:
+                    processed_history += 'system: ' + message['content'] + '\n'
             if message['role'] == 'assistant':
-                processed_history += '' + message['content'] + '\n'
+                processed_history += 'assistant: ' + message['content'] + '\n'
             if message['role'] == 'user':
-                processed_history += '' + message['content'] + '\n'
+                processed_history += 'user: ' + message['content'] + '\n'
+        return processed_history
+
+    def _process_history_vanilla( self, history: List[Dict[str, str]] ) -> str:
+        processed_history = ''
+        if self.config.cerebras.do_prompt_injection:
+            processed_history += self.config.cerebras.system_prompt
+        for message in history:
+            if message['role'] == 'system': continue
+            processed_history += message['content'] + '\n'
         return processed_history
 
     def forward( self, messages: List[Dict[str, str]]  ) -> str:
-        history = self._process_history(messages)
-        bittensor.logging.debug( "Message: {}".format( messages[0]["content"] ) )
+        if self.config.cerebras.use_vanilla_process_history:
+            history = self._process_history_vanilla(messages)
+        else:
+            history = self._process_history(messages)
+            history += 'assistant: '
+
+        bittensor.logging.debug( "History: {}".format( history ) )
         generation = self.pipe( history )[0]['generated_text'].split(':')[-1].replace( str( history ), "")
         bittensor.logging.debug( "Generation: {}".format( generation ) )
         return generation
